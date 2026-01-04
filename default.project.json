@@ -51,7 +51,8 @@
       "StarterPlayerScripts": {
         "Client": {
           "$path": "src/client"
-        }
+        },
+        "$path": "src/starterplayerscripts"
       },
       "StarterCharacterScripts": {
         "Character": {
