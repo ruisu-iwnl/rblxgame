@@ -8,13 +8,9 @@ local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 local DoorRemoteEvents = require(ReplicatedStorage.Shared.Modules.DoorRemoteEvents)
+local LOCKED_DOORS = require(ReplicatedStorage.Shared.Modules.LockedDoors)
 
 local GuiService = game:GetService("GuiService")
-
-local LOCKED_DOORS = {
-	["Door1"] = true,
-	["Door2"] = false,
-}
 
 local promptGui = Instance.new("ScreenGui")
 promptGui.Name = "DoorPrompt"
@@ -63,8 +59,14 @@ local function showLockedMessage()
 	task.wait(2)
 	
 	if promptText.Visible and currentDoor then
-		promptText.Text = "Click to Open Door"
-		promptText.TextColor3 = Color3.new(1, 1, 1)
+		local isLocked = LOCKED_DOORS[currentDoor.Name] == true
+		if isLocked then
+			promptText.Text = "Door Locked"
+			promptText.TextColor3 = Color3.new(1, 0.3, 0.3)
+		else
+			promptText.Text = "Click to Open Door"
+			promptText.TextColor3 = Color3.new(1, 1, 1)
+		end
 	end
 end
 
@@ -92,25 +94,6 @@ local function fadeFromBlack()
 	tween:Play()
 end
 
-local function isPathClear(playerPosition, doorPart)
-	local rayOrigin = playerPosition
-	local rayDirection = doorPart.Position - playerPosition
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-	raycastParams.FilterDescendantsInstances = {player.Character, doorPart}
-	
-	local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-	
-	if raycastResult then
-		local hitPart = raycastResult.Instance
-		if hitPart ~= doorPart and not hitPart:IsDescendantOf(doorPart.Parent) then
-			return false
-		end
-	end
-	
-	return true
-end
-
 local function checkProximity()
 	if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
 		return
@@ -134,9 +117,17 @@ local function checkProximity()
 				local toDoor = (doorPart.Position - position).Unit
 				local facingDot = lookVector:Dot(toDoor)
 				
-				if facingDot > 0.5 and isPathClear(position, doorPart) then
+				if facingDot > 0.5 then
 					if currentDoor ~= doorPart then
 						currentDoor = doorPart
+						local isLocked = LOCKED_DOORS[doorPart.Name] == true
+						if isLocked then
+							promptText.Text = "Door Locked"
+							promptText.TextColor3 = Color3.new(1, 0.3, 0.3)
+						else
+							promptText.Text = "Click to Open Door"
+							promptText.TextColor3 = Color3.new(1, 1, 1)
+						end
 						showPrompt()
 					end
 					return

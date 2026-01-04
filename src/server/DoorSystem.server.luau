@@ -2,30 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local DoorRemoteEvents = require(ReplicatedStorage.Shared.Modules.DoorRemoteEvents)
-
-local LOCKED_DOORS = {
-	["Door1"] = true,
-	["Door2"] = false,
-}
-
-local function isPathClear(playerPosition, doorPart, character)
-	local rayOrigin = playerPosition
-	local rayDirection = doorPart.Position - playerPosition
-	local raycastParams = RaycastParams.new()
-	raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-	raycastParams.FilterDescendantsInstances = {character, doorPart}
-	
-	local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
-	
-	if raycastResult then
-		local hitPart = raycastResult.Instance
-		if hitPart ~= doorPart and not hitPart:IsDescendantOf(doorPart.Parent) then
-			return false
-		end
-	end
-	
-	return true
-end
+local LOCKED_DOORS = require(ReplicatedStorage.Shared.Modules.LockedDoors)
 
 DoorRemoteEvents.DoorOpen.OnServerEvent:Connect(function(player, doorPart)
 	if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
@@ -36,10 +13,6 @@ DoorRemoteEvents.DoorOpen.OnServerEvent:Connect(function(player, doorPart)
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	
 	if not rootPart then return end
-	
-	if not isPathClear(rootPart.Position, doorPart, character) then
-		return
-	end
 	
 	local isLocked = LOCKED_DOORS[doorPart.Name] == true
 	
