@@ -119,6 +119,7 @@ local function checkProximity()
 	local character = player.Character
 	local rootPart = character:FindFirstChild("HumanoidRootPart")
 	local position = rootPart.Position
+	local lookVector = rootPart.CFrame.LookVector
 	
 	local doors = workspace:FindFirstChild("Doors")
 	if not doors then return end
@@ -130,7 +131,10 @@ local function checkProximity()
 			local distance = (position - doorPart.Position).Magnitude
 			
 			if distance <= range then
-				if isPathClear(position, doorPart) then
+				local toDoor = (doorPart.Position - position).Unit
+				local facingDot = lookVector:Dot(toDoor)
+				
+				if facingDot > 0.5 and isPathClear(position, doorPart) then
 					if currentDoor ~= doorPart then
 						currentDoor = doorPart
 						showPrompt()
