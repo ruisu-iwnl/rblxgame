@@ -9,9 +9,34 @@
       }
     },
 
+    "ReplicatedFirst": {
+      "Client": {
+        "$path": "src/replicatedfirst"
+      }
+    },
+
+    "ServerStorage": {
+      "Modules": {
+        "$path": "src/serverstorage",
+        "$className": "Folder"
+      }
+    },
+
     "ServerScriptService": {
       "Server": {
-        "$path": "src/server",
+        "$path": "src/server"
+      }
+    },
+
+    "StarterGui": {
+      "GUI": {
+        "$path": "src/startergui"
+      }
+    },
+
+    "StarterPack": {
+      "Items": {
+        "$path": "src/starterpack",
         "$className": "Folder"
       }
     },
@@ -19,8 +44,12 @@
     "StarterPlayer": {
       "StarterPlayerScripts": {
         "Client": {
-          "$path": "src/client",
-          "$className": "Folder"
+          "$path": "src/client"
+        }
+      },
+      "StarterCharacterScripts": {
+        "Character": {
+          "$path": "src/character"
         }
       }
     },
