@@ -45,6 +45,9 @@
     },
 
     "StarterPlayer": {
+      "$properties": {
+        "CameraMode": "Classic"
+      },
       "StarterPlayerScripts": {
         "Client": {
           "$path": "src/client"
@@ -94,7 +97,14 @@
         "Brightness": 2,
         "GlobalShadows": true,
         "Outlines": false,
-        "Technology": "Voxel"
+        "Technology": "Voxel",
+        "FogStart": 0,
+        "FogEnd": 100,
+        "FogColor": [
+          0,
+          0,
+          0
+        ]
       }
     },
     "SoundService": {
