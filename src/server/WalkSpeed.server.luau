@@ -1,6 +1,6 @@
 local Players = game:GetService("Players")
 
-local WALK_SPEED = 9
+local WALK_SPEED = 8
 
 local function setupCharacter(character)
 	local humanoid = character:WaitForChild("Humanoid", 10)
