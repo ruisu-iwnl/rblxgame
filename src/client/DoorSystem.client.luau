@@ -76,13 +76,7 @@ local function hidePrompt()
 end
 
 local function fadeToBlack()
-	local tween = TweenService:Create(
-		blackScreen,
-		TweenInfo.new(0.05, Enum.EasingStyle.Linear),
-		{BackgroundTransparency = 0}
-	)
-	tween:Play()
-	return tween.Completed
+	blackScreen.BackgroundTransparency = 0
 end
 
 local function fadeFromBlack()
@@ -149,7 +143,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
 	if not canInteract then return end
 	
-	if input.KeyCode == Enum.KeyCode.E or input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+	if input.KeyCode == Enum.KeyCode.E or input.UserInputType == Enum.UserInputType.MouseButton1 then
 		if currentDoor and promptText.Visible then
 			local isLocked = LOCKED_DOORS[currentDoor.Name] == true
 			
@@ -158,11 +152,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 				DoorRemoteEvents.DoorOpen:FireServer(currentDoor)
 			else
 				canInteract = false
-				fadeToBlack():Wait()
+				fadeToBlack()
 				DoorRemoteEvents.DoorOpen:FireServer(currentDoor)
-				
-				task.wait(1)
-				canInteract = true
 			end
 		end
 	end
@@ -170,6 +161,7 @@ end)
 
 DoorRemoteEvents.DoorProximity.OnClientEvent:Connect(function()
 	fadeFromBlack()
+	canInteract = true
 end)
 
 proximityCheck = RunService.Heartbeat:Connect(checkProximity)
@@ -180,4 +172,56 @@ player.CharacterAdded:Connect(function()
 	blackScreen.BackgroundTransparency = 1
 	canInteract = true
 end)
+
+if UserInputService.TouchEnabled then
+	local playerGui = player:WaitForChild("PlayerGui")
+	local mobileGui = playerGui:FindFirstChild("MobileControlsGui") or Instance.new("ScreenGui")
+	if not mobileGui.Parent then
+		mobileGui.Name = "MobileControlsGui"
+		mobileGui.ResetOnSpawn = false
+		mobileGui.IgnoreGuiInset = true
+		mobileGui.Parent = playerGui
+	end
+	local interactBtn = Instance.new("ImageButton")
+	interactBtn.Name = "InteractButton"
+	interactBtn.Size = UDim2.new(0, 48, 0, 48)
+	interactBtn.Position = UDim2.new(1, -56, 0.72, 0)
+	interactBtn.AnchorPoint = Vector2.new(0.5, 0.5)
+	interactBtn.BackgroundColor3 = Color3.new(0,0,0)
+	interactBtn.BackgroundTransparency = 0.3
+	interactBtn.Parent = mobileGui
+
+	local circle = Instance.new("UICorner")
+	circle.CornerRadius = UDim.new(0.5,0)
+	circle.Parent = interactBtn
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.Text = "INTERACT"
+	label.Font = Enum.Font.GothamBold
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextScaled = true
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.new(1,0,1,0)
+	label.Position = UDim2.new(0,0,0,0)
+	label.Parent = interactBtn
+
+	interactBtn.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch then
+			if not canInteract then return end
+			if currentDoor and promptText.Visible then
+				local isLocked = LOCKED_DOORS[currentDoor.Name] == true
+				
+				if isLocked then
+					task.spawn(showLockedMessage)
+					DoorRemoteEvents.DoorOpen:FireServer(currentDoor)
+				else
+					canInteract = false
+					fadeToBlack()
+					DoorRemoteEvents.DoorOpen:FireServer(currentDoor)
+				end
+			end
+		end
+	end)
+end
 

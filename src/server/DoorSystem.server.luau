@@ -30,35 +30,28 @@ DoorRemoteEvents.DoorOpen.OnServerEvent:Connect(function(player, doorPart)
 		doorSound:Play()
 	end
 	
-	local currentCFrame = rootPart.CFrame
-	local lookVector = currentCFrame.LookVector
-	local teleportDistance = 3.5
+	local frontPart = doorPart:FindFirstChild("Front")
+	local backPart = doorPart:FindFirstChild("Back")
 	
-	local originalPosition = currentCFrame.Position
-	local doorPosition = doorPart.Position
-	local doorLookVector = doorPart.CFrame.LookVector
-	local toOriginalPlayer = originalPosition - doorPosition
-	local originalSide = toOriginalPlayer:Dot(doorLookVector)
+	if not frontPart or not backPart then
+		return
+	end
 	
-	local newPosition = originalPosition + (lookVector * teleportDistance)
-	local newCFrame = CFrame.new(newPosition, newPosition + lookVector)
+	local currentPosition = rootPart.Position
+	local frontDistance = (currentPosition - frontPart.Position).Magnitude
+	local backDistance = (currentPosition - backPart.Position).Magnitude
+	
+	local targetPosition
+	if frontDistance < backDistance then
+		targetPosition = backPart.Position
+	else
+		targetPosition = frontPart.Position
+	end
+	
+	local lookVector = rootPart.CFrame.LookVector
+	local newCFrame = CFrame.new(targetPosition, targetPosition + lookVector)
+	
 	rootPart.CFrame = newCFrame
-	
-	local toNewPlayer = newPosition - doorPosition
-	local newSide = toNewPlayer:Dot(doorLookVector)
-	
-	local needsSecondTeleport = false
-	if math.abs(originalSide) < 0.5 then
-		needsSecondTeleport = true
-	elseif (originalSide > 0 and newSide > 0) or (originalSide < 0 and newSide < 0) then
-		needsSecondTeleport = true
-	end
-	
-	if needsSecondTeleport then
-		newPosition = newPosition + (lookVector * teleportDistance)
-		newCFrame = CFrame.new(newPosition, newPosition + lookVector)
-		rootPart.CFrame = newCFrame
-	end
 	
 	DoorRemoteEvents.DoorProximity:FireClient(player)
 end)
