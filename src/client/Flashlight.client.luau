@@ -8,6 +8,7 @@ local camera = workspace.CurrentCamera
 local spotlight = nil
 local attachment = nil
 local humanoidRootPart = nil
+local humanoid = nil
 local bobOffsetY = 0
 local bobOffsetX = 0
 local targetOffsetY = 0
@@ -16,11 +17,25 @@ local bobTime = 0
 local currentLookVector = Vector3.new(0, 0, -1)
 local lastUpdateTime = tick()
 
+local SprintSystem = nil
+local function getSprintSystem()
+	if not SprintSystem then
+		local success, module = pcall(function()
+			return require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Modules"):WaitForChild("SprintSystem"))
+		end)
+		if success then
+			SprintSystem = module
+		end
+	end
+	return SprintSystem
+end
+
 local function setupFlashlight()
 	if not player.Character then return end
 	
 	local character = player.Character
 	humanoidRootPart = character:WaitForChild("HumanoidRootPart", 10)
+	humanoid = character:FindFirstChild("Humanoid")
 	if not humanoidRootPart then return end
 	
 	local existingAttachment = humanoidRootPart:WaitForChild("FlashlightAttachment", 5)
@@ -47,9 +62,19 @@ local function updateFlashlight()
 		local horizontalSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
 		
 		if horizontalSpeed > 2 then
-			bobTime = bobTime + (deltaTime * 8)
-			targetOffsetY = math.sin(bobTime) * 0.8
-			targetOffsetX = math.cos(bobTime * 0.5) * 0.5
+			local sprintModule = getSprintSystem()
+			local isSprinting = false
+			if sprintModule and humanoid then
+				isSprinting = humanoid.WalkSpeed >= sprintModule.SPRINT_SPEED - 0.5
+			end
+			
+			local bobSpeed = isSprinting and 12 or 8
+			local verticalAmplitude = isSprinting and 1.2 or 0.8
+			local horizontalAmplitude = isSprinting and 0.8 or 0.5
+			
+			bobTime = bobTime + (deltaTime * bobSpeed)
+			targetOffsetY = math.sin(bobTime) * verticalAmplitude
+			targetOffsetX = math.cos(bobTime * 0.5) * horizontalAmplitude
 		else
 			targetOffsetY = 0
 			targetOffsetX = 0
@@ -97,6 +122,10 @@ player.CharacterAdded:Connect(function()
 	else
 		currentLookVector = Vector3.new(0, 0, -1)
 	end
+end)
+
+player.CharacterRemoving:Connect(function()
+	humanoid = nil
 end)
 
 RunService.RenderStepped:Connect(function()
