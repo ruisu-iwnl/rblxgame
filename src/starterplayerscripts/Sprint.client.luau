@@ -15,7 +15,9 @@ local stamina = 6
 local maxStamina = 6
 local staminaDrain = 1
 local staminaRegen = 1.2
+local staminaRegenDelay = 0.5
 local canSprint = true
+local timeSinceLastSprint = 0
 
 local playerGui = player:WaitForChild("PlayerGui")
 local TweenService = game:GetService("TweenService")
@@ -75,10 +77,36 @@ local function hideBar()
 	end)
 end
 
+local lockIcon = nil
+local sprintBtn = nil
+
+local function updateLockIcon()
+	if lockIcon then
+		if isSprinting and canSprint then
+			lockIcon.Text = "🔓"
+			lockIcon.TextColor3 = Color3.new(0.2, 1, 0.2)
+		else
+			lockIcon.Text = "🔒"
+			lockIcon.TextColor3 = Color3.new(1, 1, 1)
+		end
+	end
+	
+	if sprintBtn then
+		if isSprinting and canSprint then
+			sprintBtn.BackgroundTransparency = 0.1
+		else
+			sprintBtn.BackgroundTransparency = 0.3
+		end
+	end
+end
+
 function setSprinting(enable)
 	enable = enable and canSprint
 	if isSprinting ~= enable then
 		isSprinting = enable
+		if not isSprinting then
+			timeSinceLastSprint = 0
+		end
 		SprintEvent:FireServer(isSprinting)
 		if isSprinting then
 			showBar()
@@ -87,61 +115,116 @@ function setSprinting(enable)
 		else
 			hideBar()
 		end
+		updateLockIcon()
 	end
+end
+
+local function resetStamina()
+	stamina = maxStamina
+	canSprint = true
+	isSprinting = false
+	timeSinceLastSprint = 0
+	hideBar()
+	updateLockIcon()
 end
 
 player.CharacterAdded:Connect(function(char)
 	character = char
 	humanoid = character:WaitForChild("Humanoid")
+	resetStamina()
 	setSprinting(false)
 end)
 
--- Key (PC)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed or not humanoid then return end
-	if input.KeyCode == SprintSystem.SPRINT_KEY then
-		setSprinting(true)
-	end
+player.CharacterRemoving:Connect(function()
+	character = nil
+	humanoid = nil
+	resetStamina()
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-	if not humanoid then return end
-	if input.KeyCode == SprintSystem.SPRINT_KEY then
-		setSprinting(false)
-	end
-end)
-
-RunService.RenderStepped:Connect(function(dt)
-	if isSprinting and canSprint then
-		stamina = math.max(0, stamina - staminaDrain * dt)
-		if stamina == 0 then
-			canSprint = false
+if not UserInputService.TouchEnabled then
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed or not humanoid then return end
+		if input.KeyCode == SprintSystem.SPRINT_KEY then
+			setSprinting(true)
+		end
+	end)
+	
+	UserInputService.InputEnded:Connect(function(input, gameProcessed)
+		if gameProcessed or not humanoid then return end
+		if input.KeyCode == SprintSystem.SPRINT_KEY then
 			setSprinting(false)
 		end
-	else
-		local prevStamina = stamina
-		stamina = math.min(maxStamina, stamina + staminaRegen * dt)
-		if stamina > 0.2 then
-			canSprint = true
+	end)
+end
+
+RunService.RenderStepped:Connect(function(dt)
+	if isSprinting and not canSprint then
+		setSprinting(false)
+	end
+	
+	if isSprinting and canSprint then
+		local isMoving = false
+		if humanoid and character and character:FindFirstChild("HumanoidRootPart") then
+			local moveDirection = humanoid.MoveDirection
+			local horizontalSpeed = Vector3.new(moveDirection.X, 0, moveDirection.Z).Magnitude
+			isMoving = horizontalSpeed > 0.1
 		end
-		if not isSprinting and prevStamina < maxStamina and stamina == maxStamina then
-			hideBar()
+		
+		if isMoving then
+			stamina = math.max(0, stamina - staminaDrain * dt)
+			if stamina == 0 then
+				canSprint = false
+				setSprinting(false)
+			end
+		end
+		timeSinceLastSprint = 0
+	else
+		if not isSprinting or not canSprint then
+			timeSinceLastSprint = timeSinceLastSprint + dt
+		end
+		
+		if timeSinceLastSprint >= staminaRegenDelay then
+			local prevStamina = stamina
+			stamina = math.min(maxStamina, stamina + staminaRegen * dt)
+			if stamina > 0.2 then
+				canSprint = true
+			end
+			if not isSprinting and prevStamina < maxStamina and stamina == maxStamina then
+				hideBar()
+			end
 		end
 	end
-	fill.Size = UDim2.new(0.95 * (stamina/maxStamina), 0, 0.6, 0)
+	
+	local targetSize = 0.95 * (stamina / maxStamina)
+	local currentSize = fill.Size.X.Scale
+	local sizeDiff = math.abs(targetSize - currentSize)
+	
+	if sizeDiff > 0.01 then
+		local newSize = currentSize + (targetSize - currentSize) * (dt * 8)
+		fill.Size = UDim2.new(newSize, 0, 0.6, 0)
+	else
+		fill.Size = UDim2.new(targetSize, 0, 0.6, 0)
+	end
 end)
 
--- MOBILE SUPPORT UI BUTTON
-if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+if UserInputService.TouchEnabled then
 	local playerGui = player:WaitForChild("PlayerGui")
-	local sprintBtn = Instance.new("Frame")
+	local mobileGui = playerGui:FindFirstChild("MobileControlsGui") or Instance.new("ScreenGui")
+	if not mobileGui.Parent then
+		mobileGui.Name = "MobileControlsGui"
+		mobileGui.ResetOnSpawn = false
+		mobileGui.IgnoreGuiInset = true
+		mobileGui.Parent = playerGui
+	end
+	sprintBtn = Instance.new("ImageButton")
 	sprintBtn.Name = "SprintButton"
-	sprintBtn.Size = UDim2.new(0, 80, 0, 80)
-	sprintBtn.Position = UDim2.new(1, -100, 1, -110)
+	sprintBtn.Size = UDim2.new(0, 48, 0, 48)
+	sprintBtn.Position = UDim2.new(1, -56, 0.88, 0)
 	sprintBtn.AnchorPoint = Vector2.new(0.5, 0.5)
 	sprintBtn.BackgroundColor3 = Color3.new(0,0,0)
 	sprintBtn.BackgroundTransparency = 0.3
-	sprintBtn.Parent = playerGui
+	sprintBtn.Image = ""
+	sprintBtn.Parent = mobileGui
 	local circle = Instance.new("UICorner")
 	circle.CornerRadius = UDim.new(0.5,0)
 	circle.Parent = sprintBtn
@@ -152,29 +235,25 @@ if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
 	label.TextColor3 = Color3.new(1, 1, 1)
 	label.TextScaled = true
 	label.BackgroundTransparency = 1
-	label.Size = UDim2.new(1,0,1,0)
+	label.Size = UDim2.new(1,0,0.6,0)
 	label.Position = UDim2.new(0,0,0,0)
 	label.Parent = sprintBtn
-
-	local held = false
-
-	sprintBtn.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch then
-			held = true
-			setSprinting(true)
+	lockIcon = Instance.new("TextLabel")
+	lockIcon.Name = "LockIcon"
+	lockIcon.Size = UDim2.new(0, 20, 0, 20)
+	lockIcon.Position = UDim2.new(0.5, 0, 0.7, 0)
+	lockIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+	lockIcon.BackgroundTransparency = 1
+	lockIcon.Text = "🔒"
+	lockIcon.TextColor3 = Color3.new(1, 1, 1)
+	lockIcon.TextSize = 16
+	lockIcon.Font = Enum.Font.Gotham
+	lockIcon.Parent = sprintBtn
+	updateLockIcon()
+	sprintBtn.Activated:Connect(function()
+		if humanoid then
+			setSprinting(not isSprinting)
 		end
-	end)
-
-	sprintBtn.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch then
-			held = false
-			setSprinting(false)
-		end
-	end)
-
-	UserInputService.TouchEnded:Connect(function(_)
-		held = false
-		setSprinting(false)
 	end)
 end
 
