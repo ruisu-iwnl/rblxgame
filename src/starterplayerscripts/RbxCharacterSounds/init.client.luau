@@ -42,9 +42,8 @@ local SOUND_DATA : { [string]: {[string]: any}} = {
 		SoundId = "rbxasset://sounds/action_jump_land.mp3",
 	},
 	Running = {
-		SoundId = "rbxasset://sounds/action_footsteps_plastic.mp3",
+		SoundId = "rbxassetid://75904665789232",
 		Looped = true,
-		Pitch = 1.85,
 	},
 	Splash = {
 		SoundId = "rbxasset://sounds/impact_water.mp3",
@@ -78,9 +77,8 @@ local AUDIOPLAYER_DATA : { [string]: {[string]: any}} = {
 		AssetId = "rbxasset://sounds/action_jump_land.mp3",
 	},
 	Running = {
-		AssetId = "rbxasset://sounds/action_footsteps_plastic.mp3",
+		AssetId = "rbxassetid://75904665789232",
 		Looping = true,
-		PlaybackSpeed = 1.85,
 	},
 	Splash = {
 		AssetId = "rbxasset://sounds/impact_water.mp3",
@@ -207,7 +205,7 @@ local function initializeSoundSystem(instances: { [string]: Instance })
 			audioPlayerWire.Name = name .. "Wire"
 			-- set default values
 			sound.Archivable = false
-			sound.Volume = 0.65
+			sound.Volume = 0.1
 			for propName, propValue: any in pairs(props) do
 				(sound :: any)[propName] = propValue
 			end
@@ -226,7 +224,7 @@ local function initializeSoundSystem(instances: { [string]: Instance })
 			sound.Archivable = false
 			sound.RollOffMinDistance = 5
 			sound.RollOffMaxDistance = 150
-			sound.Volume = 0.65
+			sound.Volume = 0.1
 			for propName, propValue: any in pairs(props) do
 				(sound :: any)[propName] = propValue
 			end
@@ -342,7 +340,30 @@ local function initializeSoundSystem(instances: { [string]: Instance })
 		end,
 
 		[sounds.Running] = function(dt: number, sound: Playable, vel: Vector3)
-			playSoundIf(sound, vel.Magnitude > 0.5 and humanoid.MoveDirection.Magnitude > 0.5)
+			local horizontalSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
+			local isMoving = horizontalSpeed > 0.5 and humanoid.MoveDirection.Magnitude > 0.5
+
+			if isMoving then
+				-- Adjust playback speed based on walk speed
+				-- Normal walk speed is 8, run speed is 16
+				-- Map walk speed to playback speed: 8 -> 0.4x, 16 -> 1.0x
+				local walkSpeed = humanoid.WalkSpeed
+				local playbackSpeed = math.clamp(map(walkSpeed, 8, 16, 0.4, 1.0), 0.4, 1.0)
+
+				if FFlagUserNewCharacterSoundsApi and sound:IsA("AudioPlayer") then
+					sound.PlaybackSpeed = playbackSpeed
+					if not sound.IsPlaying then
+						sound:Play()
+					end
+				else
+					(sound :: Sound).PlaybackSpeed = playbackSpeed
+					if not (sound :: Sound).Playing then
+						(sound :: Sound).Playing = true
+					end
+				end
+			else
+				playSoundIf(sound, false)
+			end
 		end,
 	}
 
