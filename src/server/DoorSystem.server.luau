@@ -3,6 +3,23 @@ local Players = game:GetService("Players")
 
 local DoorRemoteEvents = require(ReplicatedStorage.Shared.Modules.DoorRemoteEvents)
 local LOCKED_DOORS = require(ReplicatedStorage.Shared.Modules.LockedDoors)
+local KeySystem = require(ReplicatedStorage.Shared.Modules.KeySystem)
+local CollectibleRemoteEvents = require(ReplicatedStorage.Shared.Modules.CollectibleRemoteEvents)
+
+local function isDoorUnlocked(doorPart)
+	local unlockedValue = doorPart:FindFirstChild("Unlocked")
+	return unlockedValue and unlockedValue:IsA("BoolValue") and unlockedValue.Value == true
+end
+
+local function unlockDoor(doorPart)
+	local unlockedValue = doorPart:FindFirstChild("Unlocked")
+	if not unlockedValue then
+		unlockedValue = Instance.new("BoolValue")
+		unlockedValue.Name = "Unlocked"
+		unlockedValue.Parent = doorPart
+	end
+	unlockedValue.Value = true
+end
 
 DoorRemoteEvents.DoorOpen.OnServerEvent:Connect(function(player, doorPart)
 	if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
@@ -14,7 +31,32 @@ DoorRemoteEvents.DoorOpen.OnServerEvent:Connect(function(player, doorPart)
 	
 	if not rootPart then return end
 	
-	local isLocked = LOCKED_DOORS[doorPart.Name] == true
+	local isLocked = false
+	
+	if isDoorUnlocked(doorPart) then
+		isLocked = false
+	else
+		local doorKeyId = KeySystem.getKeyId(doorPart)
+		
+		if doorKeyId then
+			local hasKey = KeySystem.hasKeyWithId(player, doorKeyId)
+			
+			if hasKey then
+				unlockDoor(doorPart)
+				isLocked = false
+				
+				CollectibleRemoteEvents.KeyUsed:FireClient(player, doorKeyId)
+				
+				for _, otherPlayer in ipairs(Players:GetPlayers()) do
+					DoorRemoteEvents.DoorUnlocked:FireClient(otherPlayer, doorPart:GetFullName())
+				end
+			else
+				isLocked = true
+			end
+		else
+			isLocked = LOCKED_DOORS[doorPart.Name] == true
+		end
+	end
 	
 	if isLocked then
 		local doorLockedSound = doorPart:FindFirstChild("DoorLocked")

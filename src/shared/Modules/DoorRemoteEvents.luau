@@ -23,8 +23,16 @@ if not doorProximity then
 	doorProximity.Parent = folder
 end
 
+local doorUnlocked = folder:FindFirstChild("DoorUnlocked")
+if not doorUnlocked then
+	doorUnlocked = Instance.new("RemoteEvent")
+	doorUnlocked.Name = "DoorUnlocked"
+	doorUnlocked.Parent = folder
+end
+
 DoorRemoteEvents.DoorOpen = doorOpen
 DoorRemoteEvents.DoorProximity = doorProximity
+DoorRemoteEvents.DoorUnlocked = doorUnlocked
 
 return DoorRemoteEvents
 

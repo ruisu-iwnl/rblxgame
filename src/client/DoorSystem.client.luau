@@ -9,6 +9,8 @@ local playerGui = player:WaitForChild("PlayerGui")
 
 local DoorRemoteEvents = require(ReplicatedStorage.Shared.Modules.DoorRemoteEvents)
 local LOCKED_DOORS = require(ReplicatedStorage.Shared.Modules.LockedDoors)
+local KeySystem = require(ReplicatedStorage.Shared.Modules.KeySystem)
+
 
 local GuiService = game:GetService("GuiService")
 
@@ -114,7 +116,22 @@ local function checkProximity()
 				if facingDot > 0.5 then
 					if currentDoor ~= doorPart then
 						currentDoor = doorPart
-						local isLocked = LOCKED_DOORS[doorPart.Name] == true
+
+						local isLocked = false
+						
+						local unlockedValue = doorPart:FindFirstChild("Unlocked")
+						if unlockedValue and unlockedValue:IsA("BoolValue") and unlockedValue.Value == true then
+							isLocked = false
+						else
+							local doorKeyId = KeySystem.getKeyId(doorPart)
+							
+							if doorKeyId then
+								isLocked = not KeySystem.hasKeyWithId(player, doorKeyId)
+							else
+								isLocked = LOCKED_DOORS[doorPart.Name] == true
+							end
+						end
+						
 						if isLocked then
 							promptText.Text = "Door Locked"
 							promptText.TextColor3 = Color3.new(1, 0.3, 0.3)
@@ -145,7 +162,20 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	
 	if input.KeyCode == Enum.KeyCode.E or input.UserInputType == Enum.UserInputType.MouseButton1 then
 		if currentDoor and promptText.Visible then
-			local isLocked = LOCKED_DOORS[currentDoor.Name] == true
+			local isLocked = false
+			
+			local unlockedValue = currentDoor:FindFirstChild("Unlocked")
+			if unlockedValue and unlockedValue:IsA("BoolValue") and unlockedValue.Value == true then
+				isLocked = false
+			else
+				local doorKeyId = KeySystem.getKeyId(currentDoor)
+				
+				if doorKeyId then
+					isLocked = not KeySystem.hasKeyWithId(player, doorKeyId)
+				else
+					isLocked = LOCKED_DOORS[currentDoor.Name] == true
+				end
+			end
 			
 			if isLocked then
 				task.spawn(showLockedMessage)
@@ -162,6 +192,24 @@ end)
 DoorRemoteEvents.DoorProximity.OnClientEvent:Connect(function()
 	fadeFromBlack()
 	canInteract = true
+end)
+
+DoorRemoteEvents.DoorUnlocked.OnClientEvent:Connect(function(doorPath)
+	local pathParts = string.split(doorPath, ".")
+	local current = game
+	for i = 2, #pathParts do
+		current = current:FindFirstChild(pathParts[i])
+		if not current then return end
+	end
+	if current and current:IsA("BasePart") then
+		local unlockedValue = current:FindFirstChild("Unlocked")
+		if not unlockedValue then
+			unlockedValue = Instance.new("BoolValue")
+			unlockedValue.Name = "Unlocked"
+			unlockedValue.Parent = current
+		end
+		unlockedValue.Value = true
+	end
 end)
 
 proximityCheck = RunService.Heartbeat:Connect(checkProximity)
@@ -210,7 +258,20 @@ if UserInputService.TouchEnabled then
 		if input.UserInputType == Enum.UserInputType.Touch then
 			if not canInteract then return end
 			if currentDoor and promptText.Visible then
-				local isLocked = LOCKED_DOORS[currentDoor.Name] == true
+				local isLocked = false
+				
+				local unlockedValue = currentDoor:FindFirstChild("Unlocked")
+				if unlockedValue and unlockedValue:IsA("BoolValue") and unlockedValue.Value == true then
+					isLocked = false
+				else
+					local doorKeyId = KeySystem.getKeyId(currentDoor)
+					
+					if doorKeyId then
+						isLocked = not KeySystem.hasKeyWithId(player, doorKeyId)
+					else
+						isLocked = LOCKED_DOORS[currentDoor.Name] == true
+					end
+				end
 				
 				if isLocked then
 					task.spawn(showLockedMessage)
